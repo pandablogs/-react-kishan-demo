@@ -1,28 +1,26 @@
 import fs from "fs";
 import mammoth from "mammoth";
-import { createRequire } from "module";
-
-const require = createRequire(import.meta.url);
-let pdfParse = require("pdf-parse");
-if (typeof pdfParse !== "function" && pdfParse.default) {
-  pdfParse = pdfParse.default;
-}
-
+import { PDFParse } from "pdf-parse";
 
 export const extractTextFromFile = async (file) => {
   const buffer = fs.readFileSync(file.path);
 
   // ✅ PDF
   if (file.mimetype === "application/pdf") {
-    const data = await pdfParse(buffer);
-    return data.text || "";
+    const parser = new PDFParse({ data: buffer });
+    try {
+      const data = await parser.getText();
+      return data.text || "";
+    } finally {
+      await parser.destroy();
+    }
   }
 
   // ✅ DOC / DOCX
   if (
     file.mimetype === "application/msword" ||
     file.mimetype ===
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
   ) {
     const result = await mammoth.extractRawText({ buffer });
     return result.value || "";

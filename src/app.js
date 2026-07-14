@@ -11,7 +11,7 @@ const app = express();
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 app.use(cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5000",
+    origin: true, // reflect request origin (allows any frontend)
     credentials: true,
 }));
 app.use(express.json());

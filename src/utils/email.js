@@ -3,27 +3,45 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-export const sendOTP = async (email, otp, role = 'student') => {
-  const isGmail = process.env.SMTP_HOST === 'smtp.gmail.com';
-  
-  const transporter = nodemailer.createTransport(
-    isGmail ? {
-      service: 'gmail',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      }
-    } : {
-      host: process.env.SMTP_HOST || "smtp-relay.brevo.com",
-      port: parseInt(process.env.SMTP_PORT || "587"),
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-      tls: { rejectUnauthorized: false }
-    }
-  );
+/**
+ * Build a transporter that works on restricted hosts (e.g. Render):
+ * - Prefer port 587 + STARTTLS over 465 (often blocked / IPv6-only)
+ * - Force IPv4 to avoid ENETUNREACH on IPv6
+ */
+const createTransporter = () => {
+  const host = process.env.SMTP_HOST || "smtp.gmail.com";
+  const port = parseInt(process.env.SMTP_PORT || "587", 10);
+  const secure = port === 465; // true only for implicit TLS
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    requireTLS: !secure,
+    family: 4, // Force IPv4 — fixes ENETUNREACH on Render
+    connectionTimeout: 20000,
+    greetingTimeout: 20000,
+    socketTimeout: 20000,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+    tls: {
+      rejectUnauthorized: false,
+      minVersion: "TLSv1.2",
+    },
+  });
+};
+
+export const sendOTP = async (email, otp, role = "student") => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.error("SMTP Error Details:", {
+      message: "SMTP_USER or SMTP_PASS is not set",
+    });
+    return false;
+  }
+
+  const transporter = createTransporter();
   const roleName = role.charAt(0).toUpperCase() + role.slice(1);
   const mailOptions = {
     from: `"ExamAI" <${process.env.EMAIL_FROM || process.env.SMTP_USER}>`,
@@ -56,7 +74,7 @@ export const sendOTP = async (email, otp, role = 'student') => {
       code: error.code,
       command: error.command,
       response: error.response,
-      stack: error.stack
+      stack: error.stack,
     });
     return false;
   }

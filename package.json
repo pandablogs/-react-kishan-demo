@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "nodemon src/server.js",
-    "start": "node src/server.js"
+    "dev": "node api.js && nodemon src/server.js",
+    "start": "node api.js && node src/server.js"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
